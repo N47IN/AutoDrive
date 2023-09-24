@@ -1,3 +1,9 @@
+#R Navin sriram
+# use the associated world file in the same given directory
+# execute both Scripts using the extern controller command one after the other
+# finish the simulation (not pause, rewind for the sim to end) to generate a csv file with diagnostic data in the scripts' directory
+# a plot will also be plotted with all the results
+
 from vehicle import Driver
 import csv
 import matplotlib.pyplot as plt
@@ -81,10 +87,10 @@ speed_filter.previousSpeed = []
 Vel = [0,15.0]
 prev_speed = 0  
 
-a = np.array([])
-b = np.array([])
-c = np.array([])
-d = np.array([])
+a = []
+b = []
+c = []
+d = []
 
 driver.setGear(1)
 
@@ -117,15 +123,15 @@ def cmd_acc(current_speed,front_sensor):
     return cmd_acc
 
 def logging(track,speed,cmdAcc,frontDistance,a,b,c,d):
-   np.append(a,track)
+   a.append(track)
    print(a)
-   np.append(b,speed)
-   np.append(c,cmdAcc)
-   np.append(d,frontDistance)
+   b.append(speed)
+   c.append(cmdAcc)
+   d.append(frontDistance)
 
 def save_file(aa,bb,cc,dd):
-   df = pd.DataFrame({"Sample time" : aa, "speed" : bb, "accel": cc, "separation": dd})
-   df.to_csv("submission2.csv", index=False)
+   df = pd.DataFrame({"Sample time" : np.array(aa), "speed" : np.array(bb), "accel": np.array(cc), "separation": np.array(dd)})
+   df.to_csv("diagnostics.csv", index=False)
    
 plt.style.use('fivethirtyeight')
 
@@ -176,20 +182,20 @@ def plotter(aa,bb,cc,dd):
   
  # For Sine Function
  axis[0, 0].plot(aa, bb)
- axis[0, 0].set_title("Speed time")
+ axis[0, 0].set_title("Speed v/ time")
   
  # For Cosine Function
  axis[0, 1].plot(aa, cc)
- axis[0, 1].set_title("Acceleration time")
+ axis[0, 1].set_title("Acceleration v/ time")
   
  # For Tangent Function
  axis[1, 0].plot(aa, dd)
- axis[1, 0].set_title("Separation time")
+ axis[1, 0].set_title("Separation v/ time")
   
  # For Tanh Function
  axis[1, 1].plot(dd, cc)
- axis[1, 1].set_title("Acceleration distance")
- figure.show()     
+ axis[1, 1].set_title("Acceleration v/ distance")
+ plt.show()     
             
 track=0   
            
@@ -235,4 +241,5 @@ while driver.step() != -1:
        prev_speed = driver.getCurrentSpeed()
     print("ego speed is", prev_speed)
 
+atexit.register(plotter, aa=a, bb= b, cc = c, dd=d)
 atexit.register(save_file, aa=a, bb= b, cc = c, dd=d)
