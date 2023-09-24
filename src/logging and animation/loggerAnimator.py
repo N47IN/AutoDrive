@@ -124,7 +124,6 @@ def cmd_acc(current_speed,front_sensor):
 
 def logging(track,speed,cmdAcc,frontDistance,a,b,c,d):
    a.append(track)
-   print(a)
    b.append(speed)
    c.append(cmdAcc)
    d.append(frontDistance)
