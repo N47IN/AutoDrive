@@ -169,7 +169,7 @@ def Command(cmdAcc,filteredSpeed):
    } 
    driver.setThrottle(cmd[flag][0])
    driver.setBrakeIntensity(-1*cmd[flag][1])
-   acelll= ( cmd[flag][0] * Amax_T ) + (-1*cmd[flag][1]* Dmax_T)
+   acelll= ( cmd[flag][0] * Amax_T ) + (cmd[flag][1]* Dmax_T)
    print(cmd[flag][3])
    logging(track,filteredSpeed,acelll,frontDistance,a,b,c,d)
   
@@ -180,20 +180,23 @@ def plotter(aa,bb,cc,dd):
  figure, axis = plt.subplots(2, 2)
   
  # For Sine Function
- axis[0, 0].plot(aa, bb)
+ axis[0, 0].plot(aa, bb,linewidth=2)
  axis[0, 0].set_title("Speed v/ time")
   
  # For Cosine Function
- axis[0, 1].plot(aa, cc)
+ axis[0, 1].plot(aa, cc,linewidth=2)
  axis[0, 1].set_title("Acceleration v/ time")
   
  # For Tangent Function
- axis[1, 0].plot(aa, dd)
+ axis[1, 0].plot(aa, dd,linewidth=2)
  axis[1, 0].set_title("Separation v/ time")
   
  # For Tanh Function
- axis[1, 1].plot(dd, cc)
- axis[1, 1].set_title("Acceleration v/ distance")
+ axis[1, 1].plot(aa, bb, color='purple',linewidth=2)
+ axis[1, 1].plot(aa, cc,linewidth=2)
+ axis[1, 1].plot(aa, dd, color='orange',linewidth=2)
+ 
+ axis[1, 1].set_title("v/ time")
  plt.show()     
             
 track=0   
