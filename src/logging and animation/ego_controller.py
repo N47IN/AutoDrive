@@ -1,5 +1,7 @@
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
 from vehicle import Driver
-import csv
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numpy as np
@@ -8,14 +10,16 @@ from controller import DistanceSensor, Keyboard, Supervisor, Receiver
 import atexit
 
 
-#
 driver = Driver()
 keyboard = Keyboard()
 keyboard.enable(32)
 
-#receiver = driver.getDevice("receiver")
-#receiver.enable(32)
-
+'''lead = driver.getFromDef("boo")
+def lead_pos():
+ trans_field = lead.getField("translation")
+ lead_pose = trans_field.getSFVec3f()
+ print(lead_pose)
+ return lead_pose'''
 
 # 0.5 of torque corresponds to an accel of 2.54 m/s^2
 step = 32
@@ -25,6 +29,7 @@ A = 2.4             # frontal area
 m = 2100            # mass in Kg
 Rc = 0.01           # Rolling Resistance coefficient
 Vmax = 8.3          # m/s
+Vmax_p3at = 0.15     # pioneer max speed
 Amax_T = 5.02        # max Acceleration, Tesla 
 Dmax_T = 7.12       # max deceleration ie. BrakingIntensity(1), Tesla
 Amax = 1.2           # ozone parameters
@@ -42,7 +47,7 @@ sensors ={}
 
 for name in sensorsNames:
     sensors[name] = driver.getDevice("distance sensor front")
-    sensors[name].enable(10)
+    sensors[name].enable(32)
 
 Dmin = 25    # minimum distance to maintain in a CTH environment
 Th = 2       # time gap of 2s in addition to the Dmin 
@@ -52,7 +57,6 @@ step = 32  # time gap between two measurements
 
 # air drag and rolling resistance
 def drag(speed):
-  speed=speed*5/18
   air_drag = 0.5*1.1*Cd*A*(speed**2)
   rolling_res=Rc*9.8*m
   drag_tot= air_drag + rolling_res
@@ -86,6 +90,8 @@ b = []
 c = []
 d = []
 
+cmd_vel=0
+
 driver.setGear(1)
 
 # checking condition for activating ACC
@@ -118,7 +124,6 @@ def cmd_acc(current_speed,front_sensor):
 
 def logging(track,speed,cmdAcc,frontDistance,a,b,c,d):
    a.append(track)
-   print(a)
    b.append(speed)
    c.append(cmdAcc)
    d.append(frontDistance)
@@ -129,82 +134,96 @@ def save_file(aa,bb,cc,dd):
    
 plt.style.use('fivethirtyeight')
 
-'''def animate(a,b,c,d):
-    
-    x = a
-    y1 = b
-    y2 = c
-    y3 = d
-
-    plt.cla()
-
-    plt.plot(x, y1, label='speed time')
-    plt.plot(x, y2, label='acc time')
-    plt.plot(x, y3, label='distance time')
-
-    plt.legend(loc='upper left')
-    plt.tight_layout()
-
-ani = FuncAnimation(plt.gcf(), animate(a,b,c,d), interval=50)
-plt.tight_layout()
-plt.show()'''
-
 # vehicle plant controller, can be optimised further
 def Command(cmdAcc,filteredSpeed):
    flag = -1
    if cmdAcc > 0:
     flag = 1
  
-   k=min(Amax,cmdAcc)/Amax_T
-   l=-1*max(-1.4,Dmax)/Dmax_T
+   k= min(Amax,cmdAcc)/Amax_T
+   l= -1*max(cmdAcc,Dmax)/Dmax_T
    
    cmd ={                 
-   1:[k,0,0,"Accel"],    
-   -1:[0,l,0,"Decel"]
+   1:[k,0,0,"Accelerating"],    
+   -1:[0,l,0,"Decelerating"]
    } 
    driver.setThrottle(cmd[flag][0])
    driver.setBrakeIntensity(-1*cmd[flag][1])
-   acelll= ( cmd[flag][0] * Amax_T ) + (-1*cmd[flag][1]* Dmax_T)
+   acelll= ( cmd[flag][0] * Amax_T ) + (cmd[flag][1]* Dmax_T)
    print(cmd[flag][3])
    logging(track,filteredSpeed,acelll,frontDistance,a,b,c,d)
-  
+
+'''def velFromAcc(Acceleration,cmd_vel):
+     cmd_vel+=( Acceleration)*0.0264
+     print("pioneer speed", cmd_vel)'''
+
+def pioneerSpeed(filteredSpeed):
+   p3speed = filteredSpeed * Vmax_p3at/Vmax
+   return p3speed
 
 def plotter(aa,bb,cc,dd):
-
+ 
  # Initialise the subplot function using number of rows and columns
  figure, axis = plt.subplots(2, 2)
-  
- # For Sine Function
- axis[0, 0].plot(aa, bb)
+ plt.rcParams['font.size'] = '10'
+ plt.subplots_adjust(left=0.08,
+                    bottom=0.08,
+                    right=0.95,
+                    top=0.9,
+                    wspace=0.211,
+                    hspace=0.373)
+
+ axis[0, 0].plot(aa, bb,linewidth=2)
  axis[0, 0].set_title("Speed v/ time")
-  
- # For Cosine Function
- axis[0, 1].plot(aa, cc)
- axis[0, 1].set_title("Acceleration v/ time")
-  
- # For Tangent Function
- axis[1, 0].plot(aa, dd)
+ axis[0, 1].plot(aa, cc,linewidth=2)
+ axis[0, 1].set_title("Acceleration v/ time") 
+ axis[1, 0].plot(aa, dd,linewidth=2)
  axis[1, 0].set_title("Separation v/ time")
-  
- # For Tanh Function
- axis[1, 1].plot(dd, cc)
- axis[1, 1].set_title("Acceleration v/ distance")
+ axis[1, 1].plot(aa, bb, color='purple',linewidth=2)
+ axis[1, 1].plot(aa, cc,linewidth=2)
+ axis[1, 1].plot(aa, dd, color='orange',linewidth=2)
+ axis[1, 1].set_title("v/ time")
  plt.show()     
-            
-track=0   
            
+track=0 
+
+class MinimalPublisher(Node):
+
+    def __init__(self):
+        super().__init__('P3_AT')
+        self.publisher_ = self.create_publisher(Twist, '/RosAria/cmd_vel', 10)
+        #timer_period = 0.01  # seconds
+        #self.timer = self.create_timer(timer_period, self.timer_callback)
+        #self.i = 0
+
+    def publisher(self,cmd):
+        msg = Twist()
+        msg.linear.x = cmd
+        msg.angular.z = 0.0
+        msg.linear.y = 0.0
+        self.publisher_.publish(msg)
+        self.get_logger().info('P3-AT speed: %f' %cmd)
+        
+rclpy.init()  
+minimal_publisher = MinimalPublisher()
+              
 while driver.step() != -1:
-      
+    
     frontDistance = sensors["front"].getValue()
+    #minimal_publisher.publisher()
     speed = driver.getCurrentSpeed()
+    speed =speed * 5/18
+    #lead_pose=lead_pos()
     filteredSpeed = speed_filter(speed)
     filteredDist = dist_filter(frontDistance)        
     Vel[0] = Vel[1]
     Vel[1] = filteredDist
-    bi_drag = drag(speed)
-    cmdAcc= cmd_acc(speed,frontDistance)
-    track = track + 1/32
-    print(track)
+    p3speed = pioneerSpeed(filteredSpeed)
+    
+    bi_drag = drag(filteredSpeed)
+    cmdAcc= cmd_acc(filteredSpeed,frontDistance)
+    track = driver.getTime()
+    print("Simulation time elapsed :", track)
     
      
     #print(receiver.getQueueLength())
@@ -221,6 +240,7 @@ while driver.step() != -1:
     else :
     # cruise at 30kmph when ACC inactive
        print("Inactive")
+       
        driver.setGear(1)
        if filteredSpeed < 29.85:
          driver.setThrottle(0.1)
@@ -231,9 +251,12 @@ while driver.step() != -1:
         acelll= 0
        logging(track,filteredSpeed,acelll,frontDistance,a,b,c,d)
       
-       print(" Cruising at max speed")
+       
        prev_speed = driver.getCurrentSpeed()
-    print("ego speed is", prev_speed)
+    print("Ego speed :", prev_speed)
+    minimal_publisher.publisher(p3speed)
 
+#minimal_publisher.destroy_node()
+rclpy.shutdown()
 atexit.register(plotter, aa=a, bb= b, cc = c, dd=d)
 atexit.register(save_file, aa=a, bb= b, cc = c, dd=d)
