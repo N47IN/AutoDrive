@@ -4,8 +4,6 @@ from sensor_msgs.msg import LaserScan
 import numpy as np
 import pandas as pd
 from nav_msgs.msg import Odometry
-import warnings
-warnings.filterwarnings('ignore')
 from scipy.signal import cont2discrete
 import time
 import sys
@@ -382,7 +380,8 @@ def main():
             # print(f"this is cmd {cmd}")
             commands = cmd[0]
             cmd = cmd[1:]
-            p3at.publish_cmd(commands[0])
+            vel = vh + commands[0]*dt
+            p3at.publish_cmd(vel)
             flag = 1
         else :
             p3at.publish_cmd(0) 
@@ -392,7 +391,8 @@ def main():
         # print("this is alternate path try")
         commands = cmd[0]
         cmd = cmd[1:]
-        p3at.publish_cmd(commands[0])
+        vel = vh + commands[0]*dt
+        p3at.publish_cmd(vel)
         flag = 1
     else:
         pass
