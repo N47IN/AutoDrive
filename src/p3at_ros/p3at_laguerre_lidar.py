@@ -240,13 +240,21 @@ def simCon3(xm, y, Ae, Be, Ce, N_sim, Omega, Psi, Lzerot, M0, M1):
 
     return u1, y1, deltau1, k
 
+def speed_filter(speed):                      
+    speed_filter.previousSpeed.append(speed)
+    if len(speed_filter.previousSpeed) > 5:  # keep only 5 values
+        speed_filter.previousSpeed.pop(0)
+    return sum(speed_filter.previousSpeed) / float(len(speed_filter.previousSpeed))
+
+speed_filter.previousSpeed = []
+
 T_eng =  0.460 #0.26  #
 K_eng = 0.732/4
 A_f = -1/T_eng
 B_f = K_eng/T_eng
 C = np.eye(3)
 T_hw = 0.15
-d0 = 0.15
+d0 = 1
 Ts = 0.05
 T_total = 20
 T = int(T_total/Ts)
@@ -304,7 +312,7 @@ cmd = [[0]]
 failure_iter  = 0
 
 def solve(y1,A,B,C,N_sim,Omega,Psi,Lz,M0,M1):
-    d_c = front_distance - d0 + T_hw*vh
+    d_c = front_distance - d0 - T_hw*vh
     x0 = np.asarray([d_c, v_rel,ah])
     x0 = x0.reshape(3,1)
     path , y , deltau1 , k = simCon3(x0,y1,A,B,C,N_sim,Omega,Psi,Lz,M0, M1)
@@ -327,7 +335,7 @@ def solve(y1,A,B,C,N_sim,Omega,Psi,Lz,M0,M1):
 
     command = np.array(cmd)
     vel = vh + command[0]*dt
-    publish_cmd(0.5)
+    publish_cmd(vel)
 
 
 
@@ -336,13 +344,15 @@ def pose_callback(data):
         global prev_vh
         global vh
         prev_vh = vh
-        vh = data.twist.twist.linear.x
+        vh = speed_filter(data.twist.twist.linear.x)
         ah = (vh - prev_vh)/dt
-        print("HI")
+        #print(vh)
 
 def lidar_callback(data):
         #data = LaserScan()
         sum = 0
+        sum1 =0
+        k= 0
         #print(data.ranges)
         #for i in range(1):
         #print(data.ranges)
@@ -355,9 +365,14 @@ def lidar_callback(data):
         angles=np.append(angles,max_angle)
         polar_coordinates=list(zip(sum,angles))
         #print(polar_coordinates[570])
-
-
-        average = sum[100]
+        
+        for i in range(30):
+          inf = float('inf')
+          if sum[515+i] != inf:
+           sum1 += sum[515 + i]
+           k=k+1
+        average = sum1/k
+        print(average)
         #print("Distance from obstacle is")
         #print(average)
         global front_distance
@@ -372,10 +387,10 @@ def lidar_callback(data):
 def publish_cmd(v):
         global pub
         rate = rospy.Rate(1/dt)  # this is in hertz
-        print("publishing")
+        #print("publishing")
         twist = Twist()
         twist.linear.x = v
-        #rospy.loginfo(v)
+        rospy.loginfo(v)
         pub.publish(twist)
         #rate.sleep()
 
