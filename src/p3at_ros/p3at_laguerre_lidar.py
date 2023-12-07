@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import rospy
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
@@ -8,6 +10,8 @@ from scipy.signal import cont2discrete
 import time
 import sys
 import math
+
+
 flag = 0
 front_distance = 0
 prev_fd = 0
@@ -17,46 +21,7 @@ v_rel = 0
 dt = 0.1
 ah = 0
 
-class ros_nav():
 
-    def __init__(self):
-        rospy.init_node('P3_AT', anonymous=True)    
-        self.pub = rospy.Publisher('/RosAria/cmd_vel',Twist, queue_size=10)
-        self.sub = rospy.Subscriber('/laser/scan', LaserScan, self.lidar_callback)
-        self.odom = rospy.Subscriber('/RosAria/pose', Odometry, self.pose_callback)
-        self.currentSpeed = 0
-        self.current_acc = 0
-        self.prev_speed = 0
-        self.Vel = [0,15.0]
-        rospy.spin()
-
-    def pose_callback(self,data):
-        data = Odometry()
-        prev_vh = vh
-        vh = data.twist.linear.x
-        ah = (vh - prev_vh)/dt
-
-    def lidar_callback(self,data):
-        data = LaserScan()
-        sum = 0
-        for i in range(5):
-            sum += data.ranges(359 + i)
-        average = sum/i
-        rospy.loginfo("Distance to obstacle", average)
-        prev_fd = front_distance
-        front_distance = average
-        v_rel = (average - front_distance)/dt
-        main()
-        flag = 1
-
-    def publish_cmd(self,v):
-        rate = rospy.Rate(1/dt)  # this is in hertz
-        print("publishing")
-        twist = Twist()
-        twist.linear.x = v
-        rospy.loginfo("publish velocity", v)
-        self.pub.publish(twist)
-        rate.sleep()
 
 def rnd(number, precision=3):
     if isinstance(number, (int, float)):
@@ -275,16 +240,13 @@ def simCon3(xm, y, Ae, Be, Ce, N_sim, Omega, Psi, Lzerot, M0, M1):
 
     return u1, y1, deltau1, k
 
-
-p3at = ros_nav()
-## Parameters
 T_eng =  0.460 #0.26  #
 K_eng = 0.732/4
 A_f = -1/T_eng
 B_f = K_eng/T_eng
 C = np.eye(3)
 T_hw = 0.15
-d0 = 3
+d0 = 0.15
 Ts = 0.05
 T_total = 20
 T = int(T_total/Ts)
@@ -341,7 +303,7 @@ path = [-100]
 cmd = [[0]]
 failure_iter  = 0
 
-def main():
+def solve(y1,A,B,C,N_sim,Omega,Psi,Lz,M0,M1):
     d_c = front_distance - d0 + T_hw*vh
     x0 = np.asarray([d_c, v_rel,ah])
     x0 = x0.reshape(3,1)
@@ -364,41 +326,74 @@ def main():
 
 
     command = np.array(cmd)
-    message = command.tobytes()
-    if flag == 0:
-        if message != '' : #and message != previous_message:
-        # previous_message = message
-            path = message
-            if np.isnan(path[0]):
-             path[0] = -3
-        
-        cmd = np.empty((0,1))
-        if not isinstance(path, str) and len(path) >= 0 and path[0]!= -100:
-            for a in path:
-                accel = a  
-                cmd = np.vstack((cmd,[accel]))
-            # print(f"this is cmd {cmd}")
-            commands = cmd[0]
-            cmd = cmd[1:]
-            vel = vh + commands[0]*dt
-            p3at.publish_cmd(vel)
-            flag = 1
-        else :
-            p3at.publish_cmd(0) 
-            flag =1         
+    vel = vh + command[0]*dt
+    publish_cmd(0.5)
 
-    elif len(cmd)>0:
-        # print("this is alternate path try")
-        commands = cmd[0]
-        cmd = cmd[1:]
-        vel = vh + commands[0]*dt
-        p3at.publish_cmd(vel)
+
+
+
+def pose_callback(data):
+        global prev_vh
+        global vh
+        prev_vh = vh
+        vh = data.twist.twist.linear.x
+        ah = (vh - prev_vh)/dt
+        print("HI")
+
+def lidar_callback(data):
+        #data = LaserScan()
+        sum = 0
+        #print(data.ranges)
+        #for i in range(1):
+        #print(data.ranges)
+        sum = list(data.ranges)
+        #print(len(sum))
+        min_angle=data.angle_min
+        max_angle=data.angle_max
+        inc_angle=data.angle_increment
+        angles=np.arange(min_angle,max_angle,inc_angle)
+        angles=np.append(angles,max_angle)
+        polar_coordinates=list(zip(sum,angles))
+        #print(polar_coordinates[570])
+
+
+        average = sum[100]
+        #print("Distance from obstacle is")
+        #print(average)
+        global front_distance
+        global prev_fd
+        global v_rel
+        prev_fd = front_distance
+        front_distance = average
+        v_rel = (average - front_distance)/dt
+        #solve(y1,A,B,C,N_sim,Omega,Psi,Lz,M0,M1)
         flag = 1
-    else:
-        pass
 
+def publish_cmd(v):
+        global pub
+        rate = rospy.Rate(1/dt)  # this is in hertz
+        print("publishing")
+        twist = Twist()
+        twist.linear.x = v
+        #rospy.loginfo(v)
+        pub.publish(twist)
+        #rate.sleep()
 
+def main():
+    global pub
+    rospy.init_node('P3_AT', anonymous=True)    
+    pub = rospy.Publisher('/RosAria/cmd_vel',Twist, queue_size=10)
+    scanner = rospy.Subscriber('/scan', LaserScan, lidar_callback)
+    odom = rospy.Subscriber('/RosAria/pose', Odometry, pose_callback)
+    while not rospy.is_shutdown():
+        solve(y1,A,B,C,N_sim,Omega,Psi,Lz,M0,M1)
 
+    rospy.spin()  
 
-
+if __name__ == '__main__':
+    main()
     
+
+
+
+
