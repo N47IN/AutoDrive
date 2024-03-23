@@ -69,22 +69,9 @@ while driver.step()!=-1:
       obs = llc([12.991664, 80.231718])
       obs = np.asarray([obs[0],obs[1]])
       curr_coord = np.asarray([curr_pos[0],curr_pos[1]])
-      if np.linalg.norm(curr_coord - obs) > 13:
-         steer_angle, k = stanley.steer_control(curr_pos,yaw,speed)
-         print("Stanley")
-      else:
-         print("Avoidance")
-         print(curr_coord,obs,yaw)
-         #[1054453.18935894 9187157.01811257]
-          #[1054440.25544082 9187156.53298734]
-         #-0.49735188283943693
-
-         dubins_avoid = stanley.get_alternate_dubinsRRT(curr_coord,obs,yaw)
-         print(dubins_avoid)
-         plt.plot(dubins_avoid[0],dubins_avoid[1])
-         plt.pause(2)
-         plt.close()
-         break
+      steer_angle, k = stanley.steer_control(curr_pos,yaw,speed)
+      print("Stanley")
+      
       
       #print(steer_angle)
       if steer_angle is None:
