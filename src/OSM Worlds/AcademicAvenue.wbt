@@ -7,9 +7,7 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/project
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/road/protos/Crossroad.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/road/protos/RoadLine.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/buildings/protos/SimpleBuilding.proto"
-EXTERNPROTO "webots://projects/vehicles/protos/tesla/TeslaModel3.proto"
-EXTERNPROTO "webots://projects/vehicles/protos/toyota/ToyotaPrius.proto"
-EXTERNPROTO "webots://projects/vehicles/protos/range_rover/RangeRoverSportSVR.proto"
+
 
 WorldInfo {
   info [
@@ -49,22 +47,7 @@ Floor {
     metalness 0
   }
 }
-RangeRoverSportSVR {
-  translation -371.776547149737 -25.30636266894532 -0.16853715298881602
-  rotation 0.018745678948333833 0.9844437074104753 -0.17469741400686126 0.0290970891454934
-  name "vehicle(3)"
-}
-ToyotaPrius {
-  translation -436.4285922404487 -26.565054521658507 -0.10266708975007399
-  rotation -0.01802859062517832 -0.014159733515075358 -0.9997372014018742 1.6407245020598071
-  name "vehicle(1)"
-  controller "sample"
-}
-TeslaModel3 {
-  translation -482.907300751011 -42.62289628013445 -0.03923995095095448
-  rotation -2.398039273861839e-05 -0.9999898005105984 0.004516447687535826 0.015240538650536886
-  controller "sample"
-}
+
 Crossroad {
   translation 631.516933 313.69262 0.01
   name "crossroad(1)"
